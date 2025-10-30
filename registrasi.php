@@ -5,13 +5,13 @@ $error = "";
 $success = "";
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $nama_lengkap = sanitize($_POST['nama_lengkap']);
     $email = sanitize($_POST['email']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
-    $nama_lengkap = sanitize($_POST['nama_lengkap']);
     
     // Validasi
-    if (empty($email) || empty($password) || empty($nama_lengkap)) {
+    if (empty($nama_lengkap) || empty($email) || empty($password) || empty($confirm_password)) {
         $error = "Semua field harus diisi!";
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = "Format email tidak valid!";
@@ -27,67 +27,39 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($stmt->rowCount() > 0) {
             $error = "Email sudah terdaftar!";
         } else {
-            // Insert user baru
+            // Hash password
             $hashed_password = password_hash($password, PASSWORD_BCRYPT);
+            
+            // Generate activation token
             $activation_token = generateToken();
             
-            $stmt = $conn->prepare("INSERT INTO users (email, password, nama_lengkap, activation_token) VALUES (?, ?, ?, ?)");
+            // Insert user baru dengan status pending
+            $stmt = $conn->prepare("INSERT INTO users (nama_lengkap, email, password, role, status, activation_token) VALUES (?, ?, ?, 'Admin Gudang', 'pending', ?)");
             
-            if ($stmt->execute([$email, $hashed_password, $nama_lengkap, $activation_token])) {
+            if ($stmt->execute([$nama_lengkap, $email, $hashed_password, $activation_token])) {
                 // Kirim email aktivasi
                 $activation_link = "http://localhost/user_management/activate.php?token=" . $activation_token;
+                
                 $email_message = "
-                    <html>
-                    <head>
-                        <style>
-                            body { font-family: Arial, sans-serif; }
-                            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                            .header { background: #667eea; color: white; padding: 20px; text-align: center; }
-                            .content { background: #f9f9f9; padding: 30px; }
-                            .button { 
-                                display: inline-block; 
-                                padding: 15px 30px; 
-                                background: #667eea; 
-                                color: white; 
-                                text-decoration: none; 
-                                border-radius: 5px; 
-                                margin: 20px 0;
-                            }
-                            .footer { text-align: center; color: #666; padding: 20px; font-size: 12px; }
-                        </style>
-                    </head>
-                    <body>
-                        <div class='container'>
-                            <div class='header'>
-                                <h1>Aktivasi Akun User Management</h1>
-                            </div>
-                            <div class='content'>
-                                <p>Halo <strong>$nama_lengkap</strong>,</p>
-                                <p>Terima kasih telah mendaftar di User Management System.</p>
-                                <p>Silakan klik tombol di bawah ini untuk mengaktifkan akun Anda:</p>
-                                <center>
-                                    <a href='$activation_link' class='button'>AKTIVASI AKUN</a>
-                                </center>
-                                <p>Atau copy link berikut ke browser Anda:</p>
-                                <p><a href='$activation_link'>$activation_link</a></p>
-                                <p><small>Link ini berlaku selama 24 jam.</small></p>
-                            </div>
-                            <div class='footer'>
-                                <p>Email ini dikirim otomatis, mohon tidak membalas.</p>
-                                <p>&copy; 2025 User Management System</p>
-                            </div>
-                        </div>
-                    </body>
-                    </html>
+                    <h2>Aktivasi Akun Admin Gudang</h2>
+                    <p>Halo <b>$nama_lengkap</b>,</p>
+                    <p>Terima kasih telah mendaftar sebagai Admin Gudang. Silakan klik tombol di bawah untuk mengaktifkan akun Anda:</p>
+                    <div style='text-align: center; margin: 30px 0;'>
+                        <a href='$activation_link' style='background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;'>AKTIVASI AKUN</a>
+                    </div>
+                    <p>Atau copy link berikut ke browser Anda:</p>
+                    <p style='background: #f4f4f4; padding: 10px; border-radius: 5px; word-break: break-all;'>$activation_link</p>
+                    <hr style='margin: 20px 0; border: none; border-top: 1px solid #ddd;'>
+                    <p style='color: #666; font-size: 12px;'>Jika Anda tidak mendaftar, abaikan email ini.</p>
                 ";
                 
-                if (sendEmail($email, "Aktivasi Akun User Management", $email_message)) {
+                if (sendEmail($email, "Aktivasi Akun - User Management System", $email_message)) {
                     $success = "Registrasi berhasil! Silakan cek email Anda untuk aktivasi akun.";
                 } else {
-                    $error = "Registrasi berhasil, tapi gagal mengirim email. Hubungi admin.";
+                    $error = "Registrasi berhasil, tapi gagal mengirim email. Silakan hubungi administrator.";
                 }
             } else {
-                $error = "Registrasi gagal!";
+                $error = "Gagal mendaftar. Coba lagi!";
             }
         }
     }
@@ -99,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registrasi - User Management</title>
+    <title>Registrasi Admin Gudang</title>
     <style>
         * {
             margin: 0;
@@ -137,20 +109,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             color: #555;
             font-weight: bold;
         }
-        input[type="text"],
-        input[type="email"],
-        input[type="password"] {
+        input {
             width: 100%;
             padding: 12px;
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 14px;
         }
-        input[type="text"]:focus,
-        input[type="email"]:focus,
-        input[type="password"]:focus {
+        input:focus {
             outline: none;
             border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         button {
             width: 100%;
@@ -162,6 +131,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-size: 16px;
             cursor: pointer;
             font-weight: bold;
+            transition: background 0.3s;
         }
         button:hover {
             background: #5568d3;
@@ -169,18 +139,19 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .error {
             background: #fee;
             color: #c33;
-            padding: 10px;
+            padding: 12px;
             border-radius: 5px;
             margin-bottom: 20px;
             border-left: 4px solid #c33;
         }
         .success {
-            background: #efe;
-            color: #3c3;
-            padding: 10px;
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
             border-radius: 5px;
             margin-bottom: 20px;
-            border-left: 4px solid #3c3;
+            border-left: 4px solid #28a745;
+            line-height: 1.6;
         }
         .links {
             text-align: center;
@@ -189,6 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .links a {
             color: #667eea;
             text-decoration: none;
+            font-weight: bold;
         }
         .links a:hover {
             text-decoration: underline;
@@ -200,17 +172,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <h2>Registrasi Admin Gudang</h2>
         
         <?php if ($error): ?>
-            <div class="error"><?php echo $error; ?></div>
+            <div class="error">⚠️ <?php echo $error; ?></div>
         <?php endif; ?>
         
         <?php if ($success): ?>
-            <div class="success"><?php echo $success; ?></div>
+            <div class="success">
+                ✅ <?php echo $success; ?>
+                <br><br>
+                <strong>📧 Cek inbox atau folder spam email Anda!</strong>
+            </div>
         <?php endif; ?>
         
+        <?php if (!$success): ?>
         <form method="POST" action="">
             <div class="form-group">
                 <label>Nama Lengkap</label>
-                <input type="text" name="nama_lengkap" required>
+                <input type="text" name="nama_lengkap" required autofocus>
             </div>
             
             <div class="form-group">
@@ -230,6 +207,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             
             <button type="submit">DAFTAR</button>
         </form>
+        <?php endif; ?>
         
         <div class="links">
             Sudah punya akun? <a href="login.php">Login di sini</a>

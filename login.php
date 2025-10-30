@@ -1,6 +1,7 @@
 <?php
 require_once 'config.php';
 
+// Jika sudah login, redirect ke dashboard
 if (isLoggedIn()) {
     header("Location: dashboard.php");
     exit();
@@ -15,23 +16,27 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if (empty($email) || empty($password)) {
         $error = "Email dan password harus diisi!";
     } else {
-        $stmt = $conn->prepare("SELECT id, email, password, nama_lengkap, role, status FROM users WHERE email = ?");
+        $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
         $stmt->execute([$email]);
         
         if ($stmt->rowCount() > 0) {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            if ($user['status'] !== 'active') {
-                $error = "Akun belum diaktivasi! Silakan cek email Anda.";
-            } elseif (password_verify($password, $user['password'])) {
-                // Login berhasil
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['email'] = $user['email'];
-                $_SESSION['nama_lengkap'] = $user['nama_lengkap'];
-                $_SESSION['role'] = $user['role'];
-                
-                header("Location: dashboard.php");
-                exit();
+            // Cek password
+            if (password_verify($password, $user['password'])) {
+                // Cek status akun
+                if ($user['status'] == 'active') {
+                    // Login berhasil
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['email'] = $user['email'];
+                    $_SESSION['nama_lengkap'] = $user['nama_lengkap'];
+                    $_SESSION['role'] = $user['role'];
+                    
+                    header("Location: dashboard.php");
+                    exit();
+                } else {
+                    $error = "Akun Anda belum diaktivasi! Silakan cek email untuk aktivasi.";
+                }
             } else {
                 $error = "Password salah!";
             }
@@ -47,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - User Management</title>
+    <title>Login</title>
     <style>
         * {
             margin: 0;
@@ -69,7 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             border-radius: 10px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2);
             width: 100%;
-            max-width: 400px;
+            max-width: 450px;
         }
         h2 {
             text-align: center;
@@ -85,8 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             color: #555;
             font-weight: bold;
         }
-        input[type="email"],
-        input[type="password"] {
+        input {
             width: 100%;
             padding: 12px;
             border: 1px solid #ddd;
@@ -96,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         input:focus {
             outline: none;
             border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         button {
             width: 100%;
@@ -107,6 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-size: 16px;
             cursor: pointer;
             font-weight: bold;
+            transition: background 0.3s;
         }
         button:hover {
             background: #5568d3;
@@ -114,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .error {
             background: #fee;
             color: #c33;
-            padding: 10px;
+            padding: 12px;
             border-radius: 5px;
             margin-bottom: 20px;
             border-left: 4px solid #c33;
@@ -122,32 +128,41 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         .links {
             text-align: center;
             margin-top: 20px;
-            font-size: 14px;
         }
         .links a {
             color: #667eea;
             text-decoration: none;
+            font-weight: bold;
         }
         .links a:hover {
             text-decoration: underline;
         }
-        .divider {
-            margin: 10px 0;
+        .forgot-password {
+            text-align: right;
+            margin-top: 10px;
+        }
+        .forgot-password a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .forgot-password a:hover {
+            text-decoration: underline;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Login Admin Gudang</h2>
+        <h2>🔐 Login Admin Gudang</h2>
         
         <?php if ($error): ?>
-            <div class="error"><?php echo $error; ?></div>
+            <div class="error">⚠️ <?php echo $error; ?></div>
         <?php endif; ?>
         
         <form method="POST" action="">
             <div class="form-group">
                 <label>Email</label>
-                <input type="email" name="email" required>
+                <input type="email" name="email" required autofocus>
             </div>
             
             <div class="form-group">
@@ -155,16 +170,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 <input type="password" name="password" required>
             </div>
             
+            <div class="forgot-password">
+                <a href="forgot-password.php">Lupa Password?</a>
+            </div>
+            
             <button type="submit">LOGIN</button>
         </form>
         
         <div class="links">
-            <div class="divider">
-                <a href="forgot-password.php">Lupa Password?</a>
-            </div>
-            <div class="divider">
-                Belum punya akun? <a href="register.php">Daftar di sini</a>
-            </div>
+            Belum punya akun? <a href="registrasi.php">Daftar di sini</a>
         </div>
     </div>
 </body>
