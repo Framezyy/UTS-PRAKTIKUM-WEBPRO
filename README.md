@@ -76,4 +76,4 @@ MIT License
 
 ## Kontak
 
-ichsan muhammadichsan2017@.gmail.com
+MUHAMMAD ICHSAN FIRDAUS muhammadichsan2017@.gmail.com
